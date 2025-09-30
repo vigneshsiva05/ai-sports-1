@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Upload, Video, Play, CheckCircle, Zap, Target, Activity, Eye, Gauge, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Upload, Video, Play, CircleCheck as CheckCircle, Zap, Target, Activity, Eye, Gauge, TrendingUp } from 'lucide-react';
 import { sportNames } from '@/lib/sports';
 
 interface SportExercise {

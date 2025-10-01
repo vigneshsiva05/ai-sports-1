@@ -208,12 +208,16 @@ export default function PhysicalTestPage() {
       setAnalysisStage('Validating human presence and exercise form...');
       setAnalysisProgress(15);
       
+      // Capture MediaPipe warnings without stopping analysis
+      const warnings = [];
       if (!mediaPipeResults.humanDetected) {
-        throw new Error('No human detected in the video. Please ensure you are clearly visible throughout the exercise.');
+        warnings.push('No human detected in the video. Please ensure you are clearly visible throughout the exercise.');
       }
-      
       if (mediaPipeResults.errors.length > 0) {
-        setApiError(`Analysis warnings: ${mediaPipeResults.errors.join(', ')}`);
+        warnings.push(...mediaPipeResults.errors);
+      }
+      if (warnings.length > 0) {
+        setApiError(`Analysis warnings: ${warnings.join(', ')}`);
       }
 
       // Create FormData for video upload
@@ -343,6 +347,9 @@ export default function PhysicalTestPage() {
       exercise_detected: detectedExercise,
       pushup_count: pushupCount,
       pushup_validation: pushupValidation,
+      human_detected: mediaPipeResults.humanDetected,
+      analysis_confidence: mediaPipeResults.confidence,
+      validation_errors: mediaPipeResults.errors,
       speed_score: Math.round(speedScore),
       strength_score: Math.round(strengthScore),
       agility_score: Math.round(agilityScore),

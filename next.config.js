@@ -2,7 +2,7 @@
 const nextConfig = {
   output: 'export',
   env: {
-    NEXT_FONT_GOOGLE_TIMEOUT: '180000',
+    NEXT_FONT_GOOGLE_TIMEOUT: '600000',
   },
   eslint: {
     ignoreDuringBuilds: true,

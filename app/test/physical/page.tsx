@@ -10,6 +10,9 @@ import { ArrowLeft, Upload, Video, Play, CircleCheck as CheckCircle, Zap, Target
 import { sportNames } from '@/lib/sports';
 import { MediaPipeAnalyzer } from '@/lib/mediapipe-analyzer';
 
+// Initialize MediaPipe analyzer instance
+const mediaPipeAnalyzer = new MediaPipeAnalyzer();
+
 interface SportExercise {
   sport: string;
   exercises: string[];

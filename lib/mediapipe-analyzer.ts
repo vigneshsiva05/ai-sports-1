@@ -13,6 +13,12 @@ interface ExerciseAnalysis {
   confidence: number;
   landmarks: PoseLandmark[];
   errors: string[];
+  repTimes: number[];
+  avgRepTime: number;
+  speedScore: number;
+  strengthScore: number;
+  staminaScore: number;
+  formScore: number;
 }
 
 export class MediaPipeAnalyzer {
@@ -22,8 +28,13 @@ export class MediaPipeAnalyzer {
   private video: HTMLVideoElement;
   private pushupCount: number = 0;
   private isInDownPosition: boolean = false;
+  private lastUpTime: number = 0;
+  private repTimes: number[] = [];
   private exerciseFrames: PoseLandmark[][] = [];
   private analysisResults: ExerciseAnalysis;
+  private frameCount: number = 0;
+  private humanDetectedFrames: number = 0;
+  private validPushupFrames: number = 0;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -35,7 +46,13 @@ export class MediaPipeAnalyzer {
       exerciseType: 'unknown',
       confidence: 0,
       landmarks: [],
-      errors: []
+      errors: [],
+      repTimes: [],
+      avgRepTime: 0,
+      speedScore: 0,
+      strengthScore: 0,
+      staminaScore: 0,
+      formScore: 0
     };
   }
 
@@ -43,7 +60,6 @@ export class MediaPipeAnalyzer {
     try {
       // Initialize MediaPipe Pose
       const { Pose } = await import('@mediapipe/pose');
-      const { Camera } = await import('@mediapipe/camera_utils');
       
       this.pose = new Pose({
         locateFile: (file) => {
@@ -52,12 +68,12 @@ export class MediaPipeAnalyzer {
       });
 
       this.pose.setOptions({
-        modelComplexity: 1,
+        modelComplexity: 2, // Higher complexity for better accuracy
         smoothLandmarks: true,
         enableSegmentation: false,
         smoothSegmentation: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+        minDetectionConfidence: 0.7, // Higher confidence threshold
+        minTrackingConfidence: 0.7
       });
 
       this.pose.onResults(this.onPoseResults.bind(this));
@@ -80,7 +96,13 @@ export class MediaPipeAnalyzer {
         // Reset analysis state
         this.pushupCount = 0;
         this.isInDownPosition = false;
+        this.lastUpTime = 0;
+        this.repTimes = [];
         this.exerciseFrames = [];
+        this.frameCount = 0;
+        this.humanDetectedFrames = 0;
+        this.validPushupFrames = 0;
+        
         this.analysisResults = {
           humanDetected: false,
           exerciseDetected: false,
@@ -88,7 +110,13 @@ export class MediaPipeAnalyzer {
           exerciseType: 'unknown',
           confidence: 0,
           landmarks: [],
-          errors: []
+          errors: [],
+          repTimes: [],
+          avgRepTime: 0,
+          speedScore: 0,
+          strengthScore: 0,
+          staminaScore: 0,
+          formScore: 0
         };
 
         this.video.onloadedmetadata = () => {
@@ -108,15 +136,13 @@ export class MediaPipeAnalyzer {
   }
 
   private async processVideoFrames(sport: string, expectedPushups: number, resolve: Function): Promise<void> {
-    const frameRate = 10; // Process 10 frames per second
+    const frameRate = 15; // Process 15 frames per second for better accuracy
     const interval = 1000 / frameRate;
-    let frameCount = 0;
-    let humanDetectedFrames = 0;
-
+    
     const processFrame = async () => {
       if (this.video.currentTime >= this.video.duration) {
         // Analysis complete
-        this.finalizeAnalysis(sport, expectedPushups, humanDetectedFrames, frameCount);
+        this.finalizeAnalysis(sport, expectedPushups);
         resolve(this.analysisResults);
         return;
       }
@@ -127,10 +153,10 @@ export class MediaPipeAnalyzer {
       // Send frame to MediaPipe
       await this.pose.send({ image: this.canvas });
       
-      frameCount++;
+      this.frameCount++;
       this.video.currentTime += interval / 1000;
       
-      setTimeout(processFrame, 50); // Small delay between frames
+      setTimeout(processFrame, 30); // Reduced delay for faster processing
     };
 
     this.video.currentTime = 0;
@@ -140,50 +166,87 @@ export class MediaPipeAnalyzer {
   private onPoseResults(results: any): void {
     if (results.poseLandmarks && results.poseLandmarks.length > 0) {
       const landmarks = results.poseLandmarks;
-      this.analysisResults.humanDetected = true;
-      this.analysisResults.landmarks = landmarks;
-      this.exerciseFrames.push(landmarks);
-
-      // Analyze for push-ups
-      this.analyzePushup(landmarks);
       
-      // Analyze exercise type
-      this.analyzeExerciseType(landmarks);
+      // Check if landmarks are valid and visible
+      const visibleLandmarks = landmarks.filter((landmark: PoseLandmark) => 
+        landmark.visibility > 0.5
+      );
+      
+      if (visibleLandmarks.length >= 20) { // Need at least 20 visible landmarks for human detection
+        this.humanDetectedFrames++;
+        this.analysisResults.humanDetected = true;
+        this.analysisResults.landmarks = landmarks;
+        this.exerciseFrames.push(landmarks);
+
+        // Analyze for push-ups with improved accuracy
+        this.analyzePushupImproved(landmarks);
+        
+        // Analyze exercise type
+        this.analyzeExerciseType(landmarks);
+      }
     }
   }
 
-  private analyzePushup(landmarks: PoseLandmark[]): void {
+  private analyzePushupImproved(landmarks: PoseLandmark[]): void {
     try {
       // Key landmarks for push-up analysis
-      const leftShoulder = landmarks[11];  // LEFT_SHOULDER
-      const rightShoulder = landmarks[12]; // RIGHT_SHOULDER
-      const leftElbow = landmarks[13];     // LEFT_ELBOW
-      const rightElbow = landmarks[14];    // RIGHT_ELBOW
-      const leftWrist = landmarks[15];     // LEFT_WRIST
-      const rightWrist = landmarks[16];    // RIGHT_WRIST
-      const nose = landmarks[0];           // NOSE
+      const leftShoulder = landmarks[11];   // LEFT_SHOULDER
+      const rightShoulder = landmarks[12];  // RIGHT_SHOULDER
+      const leftElbow = landmarks[13];      // LEFT_ELBOW
+      const rightElbow = landmarks[14];     // RIGHT_ELBOW
+      const leftWrist = landmarks[15];      // LEFT_WRIST
+      const rightWrist = landmarks[16];     // RIGHT_WRIST
+      const leftHip = landmarks[23];        // LEFT_HIP
+      const rightHip = landmarks[24];       // RIGHT_HIP
+      const nose = landmarks[0];            // NOSE
 
-      // Check if person is in plank position (horizontal body)
+      // Check visibility of key landmarks
+      const keyLandmarks = [leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist];
+      const visibleKeyLandmarks = keyLandmarks.filter(landmark => landmark.visibility > 0.6);
+      
+      if (visibleKeyLandmarks.length < 4) return; // Need at least 4 key landmarks
+
+      // Check if person is in plank/push-up position
       const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+      const hipY = (leftHip.y + rightHip.y) / 2;
       const noseY = nose.y;
-      const isHorizontal = Math.abs(shoulderY - noseY) < 0.1;
+      
+      // More accurate horizontal position check
+      const bodyAlignment = Math.abs(shoulderY - hipY);
+      const headAlignment = Math.abs(shoulderY - noseY);
+      const isHorizontal = bodyAlignment < 0.15 && headAlignment < 0.2;
 
       if (!isHorizontal) return; // Not in push-up position
 
-      // Calculate elbow angles
+      this.validPushupFrames++;
+
+      // Calculate elbow angles with improved accuracy
       const leftElbowAngle = this.calculateAngle(leftShoulder, leftElbow, leftWrist);
       const rightElbowAngle = this.calculateAngle(rightShoulder, rightElbow, rightWrist);
       const avgElbowAngle = (leftElbowAngle + rightElbowAngle) / 2;
 
-      // Push-up detection logic
-      const isDown = avgElbowAngle < 100; // Arms bent (down position)
-      const isUp = avgElbowAngle > 160;   // Arms straight (up position)
+      // More precise push-up detection thresholds
+      const isDown = avgElbowAngle < 110 && avgElbowAngle > 45; // Arms bent (down position)
+      const isUp = avgElbowAngle > 150; // Arms straight (up position)
+
+      // State machine for push-up counting
+      const currentTime = this.video.currentTime * 1000; // Convert to milliseconds
 
       if (isDown && !this.isInDownPosition) {
         this.isInDownPosition = true;
       } else if (isUp && this.isInDownPosition) {
+        // Complete push-up detected
         this.pushupCount++;
         this.isInDownPosition = false;
+        
+        // Calculate rep time
+        if (this.lastUpTime > 0) {
+          const repTime = currentTime - this.lastUpTime;
+          if (repTime > 500 && repTime < 10000) { // Valid rep time between 0.5-10 seconds
+            this.repTimes.push(repTime);
+          }
+        }
+        this.lastUpTime = currentTime;
       }
 
     } catch (error) {
@@ -207,18 +270,16 @@ export class MediaPipeAnalyzer {
       const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
       const hipWidth = Math.abs(leftHip.x - rightHip.x);
 
-      // Simple exercise classification based on body position
-      if (bodyHeight < 0.3) {
+      // Improved exercise classification
+      if (bodyHeight < 0.4 && shoulderWidth > 0.1) {
         this.analysisResults.exerciseType = 'push-up';
       } else if (bodyHeight > 0.7) {
         this.analysisResults.exerciseType = 'standing';
-      } else {
+      } else if (bodyHeight > 0.4 && bodyHeight < 0.7) {
         this.analysisResults.exerciseType = 'squat';
       }
 
       this.analysisResults.exerciseDetected = true;
-      this.analysisResults.confidence = Math.min(0.95, this.exerciseFrames.length / 30);
-
     } catch (error) {
       console.error('Exercise type analysis error:', error);
     }
@@ -233,33 +294,81 @@ export class MediaPipeAnalyzer {
     return angle;
   }
 
-  private finalizeAnalysis(sport: string, expectedPushups: number, humanDetectedFrames: number, totalFrames: number): void {
+  private finalizeAnalysis(sport: string, expectedPushups: number): void {
     // Calculate human detection confidence
-    const humanDetectionRate = humanDetectedFrames / totalFrames;
-    this.analysisResults.humanDetected = humanDetectionRate > 0.5;
+    const humanDetectionRate = this.humanDetectedFrames / this.frameCount;
+    this.analysisResults.humanDetected = humanDetectionRate > 0.3; // Lower threshold but more frames required
 
     // Validate push-up count
     this.analysisResults.pushupCount = this.pushupCount;
 
+    // Calculate average rep time
+    if (this.repTimes.length > 0) {
+      this.analysisResults.avgRepTime = this.repTimes.reduce((sum, time) => sum + time, 0) / this.repTimes.length;
+      this.analysisResults.repTimes = this.repTimes;
+    }
+
+    // Calculate performance scores based on actual data
+    this.calculatePerformanceScores(expectedPushups);
+
     // Set confidence based on detection quality
-    this.analysisResults.confidence = Math.min(0.95, humanDetectionRate * this.exerciseFrames.length / 50);
+    const validFrameRatio = this.validPushupFrames / this.frameCount;
+    this.analysisResults.confidence = Math.min(0.95, humanDetectionRate * validFrameRatio * 2);
 
     // Add validation errors
     if (!this.analysisResults.humanDetected) {
-      this.analysisResults.errors.push('No human detected in video');
+      this.analysisResults.errors.push('Human detection confidence too low - ensure you are clearly visible');
     }
     
     if (this.pushupCount === 0 && expectedPushups > 0) {
-      this.analysisResults.errors.push('No push-ups detected');
+      this.analysisResults.errors.push('No push-ups detected - ensure proper form and camera angle');
     }
 
-    if (this.pushupCount < expectedPushups * 0.5) {
+    if (this.pushupCount < expectedPushups * 0.3) {
       this.analysisResults.errors.push(`Low push-up count: ${this.pushupCount}/${expectedPushups} expected`);
     }
 
-    if (this.exerciseFrames.length < 30) {
-      this.analysisResults.errors.push('Video too short for accurate analysis');
+    if (this.validPushupFrames < 30) {
+      this.analysisResults.errors.push('Insufficient exercise frames for accurate analysis');
     }
+
+    if (this.humanDetectedFrames < this.frameCount * 0.5) {
+      this.analysisResults.errors.push('Human not consistently visible throughout video');
+    }
+  }
+
+  private calculatePerformanceScores(expectedPushups: number): void {
+    // Speed Score - based on rep time consistency
+    if (this.repTimes.length > 1) {
+      const avgRepTime = this.analysisResults.avgRepTime;
+      const idealRepTime = 2000; // 2 seconds per rep
+      const timeDiff = Math.abs(avgRepTime - idealRepTime);
+      this.analysisResults.speedScore = Math.max(0, Math.min(100, 100 - (timeDiff / 50)));
+    } else {
+      this.analysisResults.speedScore = 50; // Default if no rep times
+    }
+
+    // Strength Score - based on push-up count vs expected
+    const completionRatio = this.pushupCount / expectedPushups;
+    this.analysisResults.strengthScore = Math.min(100, completionRatio * 100);
+
+    // Stamina Score - based on rep time consistency (less variation = better stamina)
+    if (this.repTimes.length > 2) {
+      const repTimeVariation = this.calculateVariation(this.repTimes);
+      this.analysisResults.staminaScore = Math.max(0, Math.min(100, 100 - (repTimeVariation / 20)));
+    } else {
+      this.analysisResults.staminaScore = 60; // Default
+    }
+
+    // Form Score - based on valid push-up frames vs total frames
+    const formRatio = this.validPushupFrames / Math.max(1, this.humanDetectedFrames);
+    this.analysisResults.formScore = Math.min(100, formRatio * 100);
+  }
+
+  private calculateVariation(values: number[]): number {
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    return Math.sqrt(variance);
   }
 
   getAnalysisResults(): ExerciseAnalysis {

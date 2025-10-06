@@ -328,16 +328,16 @@ export default function PhysicalTestPage() {
   const processAPIResponse = (apiResponse: any, sportData: SportExercise, mediaPipeResults: any): PhysicalResults => {
     // Process real API response according to your specifications
     const detectedExercise = apiResponse.exercise_detected || sportData.exercises[0];
-    const pushupCount = mediaPipeResults.pushupCount || apiResponse.pushup_count || 0;
+    const pushupCount = mediaPipeResults.pushupCount || 0;
     const pushupValidation = pushupCount >= Math.floor(sportData.pushUps * 0.8);
 
     // Extract performance metrics from API
-    const speedScore = Math.min(100, Math.max(0, apiResponse.speed_score || (70 + Math.random() * 25)));
-    const strengthScore = Math.min(100, Math.max(0, apiResponse.strength_score || (70 + Math.random() * 25)));
-    const agilityScore = Math.min(100, Math.max(0, apiResponse.agility_score || (70 + Math.random() * 25)));
-    const balanceScore = Math.min(100, Math.max(0, apiResponse.balance_score || (70 + Math.random() * 25)));
-    const postureScore = Math.min(100, Math.max(0, apiResponse.posture_score || (70 + Math.random() * 25)));
-    const coordinationScore = Math.min(100, Math.max(0, apiResponse.coordination_score || (70 + Math.random() * 25)));
+    const speedScore = Math.min(100, Math.max(0, apiResponse.speed_score || mediaPipeResults.speedScore || 0));
+    const strengthScore = Math.min(100, Math.max(0, apiResponse.strength_score || mediaPipeResults.strengthScore || 0));
+    const agilityScore = Math.min(100, Math.max(0, apiResponse.agility_score || mediaPipeResults.staminaScore || 0));
+    const balanceScore = Math.min(100, Math.max(0, apiResponse.balance_score || mediaPipeResults.formScore || 0));
+    const postureScore = Math.min(100, Math.max(0, apiResponse.posture_score || mediaPipeResults.formScore || 0));
+    const coordinationScore = Math.min(100, Math.max(0, apiResponse.coordination_score || mediaPipeResults.speedScore || 0));
 
     const physicalScore = Math.floor((speedScore + strengthScore + agilityScore + balanceScore + postureScore + coordinationScore) / 6);
     const performanceLevel = getPerformanceLevel(physicalScore);
@@ -367,18 +367,16 @@ export default function PhysicalTestPage() {
     // Generate realistic analysis results when API is unavailable
     const detectedExercise = sportData.exercises[Math.floor(Math.random() * sportData.exercises.length)];
     const expectedPushUps = sportData.pushUps;
-    const actualPushUps = mediaPipeResults.pushupCount || Math.floor(expectedPushUps * (0.7 + Math.random() * 0.5));
+    const actualPushUps = mediaPipeResults.pushupCount || 0;
     const pushupValidation = actualPushUps >= Math.floor(expectedPushUps * 0.8);
 
-    const baseScore = 65 + Math.random() * 25; // 65-90 base
-    const sportMultiplier = getSportMultiplier(sport);
-    
-    const speedScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.speed));
-    const strengthScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.strength));
-    const agilityScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.agility));
-    const balanceScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.balance));
-    const postureScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.posture));
-    const coordinationScore = Math.min(100, Math.floor(baseScore + (Math.random() * 20 - 10) * sportMultiplier.coordination));
+    // Use MediaPipe analysis results or calculate based on performance
+    const speedScore = mediaPipeResults.speedScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'speed');
+    const strengthScore = mediaPipeResults.strengthScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'strength');
+    const agilityScore = mediaPipeResults.staminaScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'agility');
+    const balanceScore = mediaPipeResults.formScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'balance');
+    const postureScore = mediaPipeResults.formScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'posture');
+    const coordinationScore = mediaPipeResults.speedScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'coordination');
 
     const physicalScore = Math.floor((speedScore + strengthScore + agilityScore + balanceScore + postureScore + coordinationScore) / 6);
     const performanceLevel = getPerformanceLevel(physicalScore);
@@ -401,6 +399,31 @@ export default function PhysicalTestPage() {
       performance_level: performanceLevel,
       improvement_drills: improvementDrills
     };
+  };
+
+  const calculateScoreFromPushups = (actual: number, expected: number, metric: string): number => {
+    if (actual === 0) return 0;
+    
+    const ratio = actual / expected;
+    let baseScore = Math.min(100, ratio * 100);
+    
+    // Adjust based on metric type
+    switch (metric) {
+      case 'strength':
+        return Math.floor(baseScore);
+      case 'speed':
+        return Math.floor(baseScore * 0.9); // Speed slightly lower
+      case 'agility':
+        return Math.floor(baseScore * 0.85);
+      case 'balance':
+        return Math.floor(baseScore * 0.8);
+      case 'posture':
+        return Math.floor(baseScore * 0.8);
+      case 'coordination':
+        return Math.floor(baseScore * 0.9);
+      default:
+        return Math.floor(baseScore);
+    }
   };
 
   const getSportMultiplier = (sport: string) => {

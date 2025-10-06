@@ -889,6 +889,24 @@ export default function PhysicalTestPage() {
                   </div>
                 )}
 
+                {/* Detailed Results */}
+                <div className="space-y-4">
+                  {/* MediaPipe Analysis Results */}
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <h4 className="font-semibold text-purple-900 mb-2">MediaPipe Analysis Details</h4>
+                    <div className="text-sm text-purple-800 space-y-1">
+                      <p>• Push-ups detected: {results.pushup_count} (MediaPipe landmark tracking)</p>
+                      <p>• Human detection confidence: {Math.round(results.analysis_confidence * 100)}%</p>
+                      {results.api_response?.repTimes && results.api_response.repTimes.length > 0 && (
+                        <p>• Average rep time: {(results.api_response.avgRepTime / 1000).toFixed(1)}s</p>
+                      )}
+                      <p>• Exercise form validation: {results.pushup_validation ? 'Good' : 'Needs improvement'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <h4 className="font-semibold text-green-900 mb-2">Reaction Time Analysis</h4>
+
                 {/* Performance Metrics */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                   <div className="text-center">

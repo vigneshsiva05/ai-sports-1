@@ -1018,6 +1018,28 @@ export default function PhysicalTestPage() {
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Sport-specific recommendations */}
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h5 className="font-semibold text-blue-900 mb-2">Sport-Specific Focus Areas</h5>
+                    <div className="text-sm text-blue-800">
+                      {sportData.sport === 'Boxing' && (
+                        <p>• Focus on explosive power and quick recovery between reps</p>
+                      )}
+                      {sportData.sport === 'Wrestling' && (
+                        <p>• Emphasize controlled movements and core stability</p>
+                      )}
+                      {sportData.sport === 'Athletics' && (
+                        <p>• Work on speed and explosive strength for better performance</p>
+                      )}
+                      {sportData.sport === 'Football' && (
+                        <p>• Develop agility and quick directional changes</p>
+                      )}
+                      {!['Boxing', 'Wrestling', 'Athletics', 'Football'].includes(sportData.sport) && (
+                        <p>• Continue building sport-specific strength and endurance</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6">

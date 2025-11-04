@@ -914,9 +914,7 @@ export default function PhysicalTestPage() {
                       <p>• Exercise form validation: {results.pushup_validation ? 'Good' : 'Needs improvement'}</p>
                     </div>
                   </div>
-                  
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <h4 className="font-semibold text-green-900 mb-2">Reaction Time Analysis</h4>
+                </div>
 
                 {/* Performance Metrics */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

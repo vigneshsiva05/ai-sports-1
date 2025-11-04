@@ -328,16 +328,16 @@ export default function PhysicalTestPage() {
   const processAPIResponse = (apiResponse: any, sportData: SportExercise, mediaPipeResults: any): PhysicalResults => {
     // Process real API response according to your specifications
     const detectedExercise = apiResponse.exercise_detected || sportData.exercises[0];
-    const pushupCount = mediaPipeResults.pushupCount || 0;
+    const pushupCount = mediaPipeResults.pushupCount;
     const pushupValidation = pushupCount >= Math.floor(sportData.pushUps * 0.8);
 
     // Extract performance metrics from API
-    const speedScore = Math.min(100, Math.max(0, apiResponse.speed_score || mediaPipeResults.speedScore || 0));
-    const strengthScore = Math.min(100, Math.max(0, apiResponse.strength_score || mediaPipeResults.strengthScore || 0));
-    const agilityScore = Math.min(100, Math.max(0, apiResponse.agility_score || mediaPipeResults.staminaScore || 0));
-    const balanceScore = Math.min(100, Math.max(0, apiResponse.balance_score || mediaPipeResults.formScore || 0));
-    const postureScore = Math.min(100, Math.max(0, apiResponse.posture_score || mediaPipeResults.formScore || 0));
-    const coordinationScore = Math.min(100, Math.max(0, apiResponse.coordination_score || mediaPipeResults.speedScore || 0));
+    const speedScore = Math.min(100, Math.max(0, apiResponse.speed_score || mediaPipeResults.speedScore));
+    const strengthScore = Math.min(100, Math.max(0, apiResponse.strength_score || mediaPipeResults.strengthScore));
+    const agilityScore = Math.min(100, Math.max(0, apiResponse.agility_score || mediaPipeResults.staminaScore));
+    const balanceScore = Math.min(100, Math.max(0, apiResponse.balance_score || mediaPipeResults.formScore));
+    const postureScore = Math.min(100, Math.max(0, apiResponse.posture_score || mediaPipeResults.formScore));
+    const coordinationScore = Math.min(100, Math.max(0, apiResponse.coordination_score || mediaPipeResults.speedScore));
 
     const physicalScore = Math.floor((speedScore + strengthScore + agilityScore + balanceScore + postureScore + coordinationScore) / 6);
     const performanceLevel = getPerformanceLevel(physicalScore);
@@ -367,16 +367,16 @@ export default function PhysicalTestPage() {
     // Generate realistic analysis results when API is unavailable
     const detectedExercise = sportData.exercises[Math.floor(Math.random() * sportData.exercises.length)];
     const expectedPushUps = sportData.pushUps;
-    const actualPushUps = mediaPipeResults.pushupCount || 0;
+    const actualPushUps = mediaPipeResults.pushupCount;
     const pushupValidation = actualPushUps >= Math.floor(expectedPushUps * 0.8);
 
-    // Use MediaPipe analysis results or calculate based on performance
-    const speedScore = mediaPipeResults.speedScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'speed');
-    const strengthScore = mediaPipeResults.strengthScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'strength');
-    const agilityScore = mediaPipeResults.staminaScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'agility');
-    const balanceScore = mediaPipeResults.formScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'balance');
-    const postureScore = mediaPipeResults.formScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'posture');
-    const coordinationScore = mediaPipeResults.speedScore || calculateScoreFromPushups(actualPushUps, expectedPushUps, 'coordination');
+    // Use MediaPipe analysis results - no fallback to random scores
+    const speedScore = mediaPipeResults.speedScore;
+    const strengthScore = mediaPipeResults.strengthScore;
+    const agilityScore = mediaPipeResults.staminaScore;
+    const balanceScore = mediaPipeResults.formScore;
+    const postureScore = mediaPipeResults.formScore;
+    const coordinationScore = mediaPipeResults.speedScore;
 
     const physicalScore = Math.floor((speedScore + strengthScore + agilityScore + balanceScore + postureScore + coordinationScore) / 6);
     const performanceLevel = getPerformanceLevel(physicalScore);
@@ -872,6 +872,17 @@ export default function PhysicalTestPage() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* MediaPipe Analysis Details */}
+                  <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                    <h5 className="font-semibold text-purple-900 mb-2">MediaPipe Analysis Details</h5>
+                    <div className="text-sm text-purple-800 space-y-1">
+                      <p>• Landmark tracking: 33-point pose detection</p>
+                      <p>• Exercise type: {results.exercise_detected}</p>
+                      <p>• Form validation: {results.pushup_validation ? 'Good form detected' : 'Form needs improvement'}</p>
+                      <p>• Analysis confidence: {Math.round(results.analysis_confidence * 100)}%</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Validation Errors */}
@@ -1004,6 +1015,28 @@ export default function PhysicalTestPage() {
                         <span className="text-green-800">{drill}</span>
                       </div>
                     ))}
+                  </div>
+                  
+                  {/* Sport-specific recommendations */}
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h5 className="font-semibold text-blue-900 mb-2">Sport-Specific Focus Areas</h5>
+                    <div className="text-sm text-blue-800">
+                      {sportData.sport === 'Boxing' && (
+                        <p>• Focus on explosive power and quick recovery between reps</p>
+                      )}
+                      {sportData.sport === 'Wrestling' && (
+                        <p>• Emphasize controlled movements and core stability</p>
+                      )}
+                      {sportData.sport === 'Athletics' && (
+                        <p>• Work on speed and explosive strength for better performance</p>
+                      )}
+                      {sportData.sport === 'Football' && (
+                        <p>• Develop agility and quick directional changes</p>
+                      )}
+                      {!['Boxing', 'Wrestling', 'Athletics', 'Football'].includes(sportData.sport) && (
+                        <p>• Continue building sport-specific strength and endurance</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

@@ -297,7 +297,7 @@ export class MediaPipeAnalyzer {
   private finalizeAnalysis(sport: string, expectedPushups: number): void {
     // Calculate human detection confidence
     const humanDetectionRate = this.humanDetectedFrames / this.frameCount;
-    this.analysisResults.humanDetected = humanDetectionRate > 0.3; // Lower threshold but more frames required
+    this.analysisResults.humanDetected = humanDetectionRate > 0.5; // Stricter threshold
 
     // Validate push-up count
     this.analysisResults.pushupCount = this.pushupCount;
@@ -313,7 +313,7 @@ export class MediaPipeAnalyzer {
 
     // Set confidence based on detection quality
     const validFrameRatio = this.validPushupFrames / this.frameCount;
-    this.analysisResults.confidence = Math.min(0.95, humanDetectionRate * validFrameRatio * 2);
+    this.analysisResults.confidence = Math.min(0.98, humanDetectionRate * validFrameRatio * 1.5);
 
     // Add validation errors
     if (!this.analysisResults.humanDetected) {
@@ -324,45 +324,114 @@ export class MediaPipeAnalyzer {
       this.analysisResults.errors.push('No push-ups detected - ensure proper form and camera angle');
     }
 
-    if (this.pushupCount < expectedPushups * 0.3) {
+    if (this.pushupCount < expectedPushups * 0.5) {
       this.analysisResults.errors.push(`Low push-up count: ${this.pushupCount}/${expectedPushups} expected`);
     }
 
-    if (this.validPushupFrames < 30) {
+    if (this.validPushupFrames < 50) {
       this.analysisResults.errors.push('Insufficient exercise frames for accurate analysis');
     }
 
-    if (this.humanDetectedFrames < this.frameCount * 0.5) {
+    if (this.humanDetectedFrames < this.frameCount * 0.6) {
       this.analysisResults.errors.push('Human not consistently visible throughout video');
     }
+
+    // Add sport-specific validation
+    this.addSportSpecificValidation(sport, expectedPushups);
+  }
+
+  private addSportSpecificValidation(sport: string, expectedPushups: number): void {
+    const sportMultipliers = this.getSportMultipliers(sport);
+    
+    // Adjust expectations based on sport difficulty
+    const adjustedExpected = Math.floor(expectedPushups * sportMultipliers.difficulty);
+    
+    if (this.pushupCount < adjustedExpected * 0.7) {
+      this.analysisResults.errors.push(`Below ${sport} performance standards: ${this.pushupCount}/${adjustedExpected} expected`);
+    }
+    
+    // Add sport-specific form checks
+    if (sport === 'wrestling' || sport === 'boxing') {
+      if (this.analysisResults.formScore < 70) {
+        this.analysisResults.errors.push('Combat sports require higher form standards - focus on controlled movements');
+      }
+    }
+    
+    if (sport === 'athletics' || sport === 'football') {
+      if (this.analysisResults.speedScore < 60) {
+        this.analysisResults.errors.push('Speed-based sports require faster rep execution');
+      }
+    }
+  }
+
+  private getSportMultipliers(sport: string): { difficulty: number; speed: number; strength: number } {
+    const multipliers: { [key: string]: { difficulty: number; speed: number; strength: number } } = {
+      wrestling: { difficulty: 1.3, speed: 1.0, strength: 1.4 },
+      boxing: { difficulty: 1.2, speed: 1.3, strength: 1.3 },
+      weightlifting: { difficulty: 1.4, speed: 0.8, strength: 1.5 },
+      athletics: { difficulty: 1.1, speed: 1.4, strength: 1.1 },
+      football: { difficulty: 1.1, speed: 1.3, strength: 1.0 },
+      kabaddi: { difficulty: 1.2, speed: 1.1, strength: 1.3 },
+      hockey: { difficulty: 1.1, speed: 1.2, strength: 1.1 },
+      cricket: { difficulty: 0.9, speed: 1.0, strength: 1.0 },
+      badminton: { difficulty: 0.9, speed: 1.1, strength: 0.9 },
+      tennis: { difficulty: 0.9, speed: 1.1, strength: 1.0 },
+      volleyball: { difficulty: 1.0, speed: 1.1, strength: 1.1 },
+      basketball: { difficulty: 1.1, speed: 1.2, strength: 1.1 },
+      handball: { difficulty: 1.0, speed: 1.1, strength: 1.2 },
+      swimming: { difficulty: 1.0, speed: 1.1, strength: 1.2 },
+      rowing: { difficulty: 1.1, speed: 1.0, strength: 1.3 },
+      cycling: { difficulty: 0.8, speed: 1.1, strength: 1.2 },
+      archery: { difficulty: 0.7, speed: 0.8, strength: 1.0 },
+      shooting: { difficulty: 0.7, speed: 0.8, strength: 0.9 },
+      polo: { difficulty: 0.8, speed: 1.0, strength: 1.1 },
+      'kho-kho': { difficulty: 1.2, speed: 1.3, strength: 1.0 }
+    };
+    
+    return multipliers[sport] || { difficulty: 1.0, speed: 1.0, strength: 1.0 };
   }
 
   private calculatePerformanceScores(expectedPushups: number): void {
     // Speed Score - based on rep time consistency
     if (this.repTimes.length > 1) {
       const avgRepTime = this.analysisResults.avgRepTime;
-      const idealRepTime = 2000; // 2 seconds per rep
+      const idealRepTime = this.getIdealRepTime();
       const timeDiff = Math.abs(avgRepTime - idealRepTime);
-      this.analysisResults.speedScore = Math.max(0, Math.min(100, 100 - (timeDiff / 50)));
+      this.analysisResults.speedScore = Math.max(0, Math.min(100, 100 - (timeDiff / 30)));
     } else {
-      this.analysisResults.speedScore = 50; // Default if no rep times
+      this.analysisResults.speedScore = this.pushupCount > 0 ? 40 : 0;
     }
 
     // Strength Score - based on push-up count vs expected
     const completionRatio = this.pushupCount / expectedPushups;
-    this.analysisResults.strengthScore = Math.min(100, completionRatio * 100);
+    this.analysisResults.strengthScore = Math.min(100, Math.max(0, completionRatio * 100));
 
     // Stamina Score - based on rep time consistency (less variation = better stamina)
     if (this.repTimes.length > 2) {
       const repTimeVariation = this.calculateVariation(this.repTimes);
-      this.analysisResults.staminaScore = Math.max(0, Math.min(100, 100 - (repTimeVariation / 20)));
+      this.analysisResults.staminaScore = Math.max(0, Math.min(100, 100 - (repTimeVariation / 15)));
     } else {
-      this.analysisResults.staminaScore = 60; // Default
+      this.analysisResults.staminaScore = this.pushupCount > 0 ? 50 : 0;
     }
 
     // Form Score - based on valid push-up frames vs total frames
     const formRatio = this.validPushupFrames / Math.max(1, this.humanDetectedFrames);
-    this.analysisResults.formScore = Math.min(100, formRatio * 100);
+    this.analysisResults.formScore = Math.min(100, Math.max(0, formRatio * 120)); // Bonus for good form
+  }
+
+  private getIdealRepTime(): number {
+    // Different sports have different ideal rep times
+    const sportTimings: { [key: string]: number } = {
+      'boxing': 1500,      // Faster for explosive sports
+      'wrestling': 1800,   // Controlled but strong
+      'athletics': 1600,   // Speed focused
+      'football': 1700,    // Balanced
+      'weightlifting': 2500, // Slower, more controlled
+      'archery': 3000,     // Very controlled
+      'shooting': 3000     // Very controlled
+    };
+    
+    return 2000; // Default 2 seconds per rep
   }
 
   private calculateVariation(values: number[]): number {

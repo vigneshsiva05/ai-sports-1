@@ -25,7 +25,7 @@ export class MediaPipeAnalyzer {
   private pose: any;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private video: HTMLVideoElement;
+  private video!: HTMLVideoElement;
   private pushupCount: number = 0;
   private isInDownPosition: boolean = false;
   private lastUpTime: number = 0;

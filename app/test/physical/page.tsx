@@ -254,11 +254,10 @@ export default function PhysicalTestPage() {
             method: 'POST',
             body: formData,
             headers: {
-              'Authorization': 'Bearer YOUR_API_KEY', // Replace with actual API key
+              'Authorization': 'Bearer YOUR_API_KEY',
               'X-Sport-Type': sport,
               'X-Analysis-Type': 'comprehensive'
-            },
-            timeout: 30000 // 30 second timeout
+            }
           });
 
           if (response.ok) {

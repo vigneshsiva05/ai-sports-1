@@ -127,8 +127,17 @@ export default function ResultsPage() {
               </Button>
               <h1 className="text-2xl font-bold text-gray-900">{sportName} Results</h1>
             </div>
-            
+
             <div className="flex space-x-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => router.push(`/leaderboard?sport=${sport}`)}
+                className="bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 text-white"
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                View Leaderboard
+              </Button>
               <Button variant="outline" size="sm">
                 <Share className="h-4 w-4 mr-2" />
                 Share
